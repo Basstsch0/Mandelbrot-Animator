@@ -1,10 +1,12 @@
 import numba as nb
+from numba import jit
 import pygame
 import sys
 import numpy as np
 import math
 import os
 import time 
+import easygui
 
 gradient = np.array([
     [153, 50, 204],  # Dark Orchid
@@ -37,8 +39,10 @@ gradient = np.array([
 @nb.njit
 def rgb_value(value, max_value, index_rgb, minval, maxval):
     # val = value % max_value 
-    range = maxval - minval
-    val = value - minval
+    # range = maxval - minval
+    # val = value - minval
+    range = 1
+    val = 1 - (minval/value)
     segment_length = range / (len(gradient) - 1)
     segment_index = min(int((val) // segment_length), len(gradient) - 2)
     segment_position = ((val) % segment_length) / segment_length
@@ -50,17 +54,17 @@ def rgb_value(value, max_value, index_rgb, minval, maxval):
     return color_val
 
 @nb.njit
-def value_to_r(value, max_value, min, max):
-    return rgb_value(value, max_value, 0, min, max)
+def value_to_r(value, max_value, min, maxval):
+    return rgb_value(value, max_value, 0, min, maxval)
 
 @nb.njit
-def value_to_g(value, max_value, min, max):
-    return rgb_value(value, max_value, 1, min, max)
+def value_to_g(value, max_value, min, maxval):
+    return rgb_value(value, max_value, 1, min, maxval)
 
 
 @nb.njit
-def value_to_b(value, max_value, min, max):
-    return rgb_value(value, max_value, 2, min, max)
+def value_to_b(value, max_value, min, maxval):
+    return rgb_value(value, max_value, 2, min, maxval)
 
 @nb.njit
 def log_base(x, base):
@@ -69,9 +73,9 @@ def log_base(x, base):
 
 @nb.njit(parallel=True)
 def mandelbrot(width, height, zoom, offset_x, offset_y):
-    max_iterations = int(350 +  zoom/2)#  log_base(float(zoom), 1))
+    max_iterations = int(100 +  zoom)#  log_base(float(zoom), 1))
     values = np.zeros((height, width, 3), dtype=np.uint64)
-    max = 0
+    maxval = 5
     
     for y in nb.prange(height):
         for x in range(width):
@@ -87,17 +91,17 @@ def mandelbrot(width, height, zoom, offset_x, offset_y):
                 x_real = x_temp
                 iterations += 1 
             
-            if(iterations > max and iterations < max_iterations):
-                max = iterations
-                print(f"{iterations} and {max}" )
+            if(iterations > maxval and iterations < max_iterations):
+                maxval = iterations
+                # print(f"{iterations} and {maxval}" )
                 
 
             values[y, x] = (iterations,iterations,iterations)
-    print(max)
+    print(maxval)
 
     minval = np.min(values)
     print(minval)
-    maxval = max
+    maxval = math.sqrt(np.max(values))
     print(maxval)
     for y in nb.prange(height):
         for x in range(width):   
@@ -144,7 +148,7 @@ def create_animation(x, y, depth, fps, zoom_factor, width, height,iterations_ini
     print(offset_x)
     print(offset_y)
     for i in range(depth * fps):
-        print(i)
+        print(f"number {i} out of {depth*fps}")
         old_zoom = zoom
         zoom *= zoom_factor
         offset_x = calculate_offset(zoom=zoom, old_zoom=old_zoom, offset_old=offset_x, mouse=width/2, total=width)
@@ -230,14 +234,15 @@ while running:
 
                 original_mouse_position_x = distance_x/3 * width
                 original_mouse_position_y = distance_y/3 * height
-                create_animation(point_x, point_y, 50, 6, 1.03, width, height)
+                create_animation(point_x, point_y, 60, 10, 1.01, width, height)
                 print("pressed")
 
             elif button2_x <= mouse[0] <= button2_x + button2_width and button2_y <= mouse[1] <= button2_y + button2_height: 
                 path = easygui.fileopenbox()
                 # animation_dir = os.path.dirname(path)
                 # animation_files = os.listdir(dir)
-                show_animation(path, 24)
+                if(path):
+                    show_animation(path, 40)
 
             
             if(zoom != old_zoom):
